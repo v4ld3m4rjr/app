@@ -20,6 +20,9 @@
     <!-- Favicon / Logo -->
     <link rel="icon" type="image/png" href="assets/logo.png">
 
+    <!-- SheetJS (Excel .xlsx & CSV Engine) -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
     <!-- iOS Native CSS -->
     <link rel="stylesheet" href="css/styles.css">
 </head>
@@ -47,6 +50,7 @@
                     <a onclick="toggleAuth('reset')" style="font-size:12.5px;color:var(--blue);cursor:pointer;font-weight:600">Esqueci minha senha</a>
                 </div>
                 <button type="button" class="btn-pill-action blue" style="width:100%;margin-top:4px" onclick="login()">Entrar</button>
+                <button type="button" class="btn-pill-action" style="width:100%;margin-top:10px;background:#f2f2f7;color:var(--blue);border:1px solid rgba(0,122,255,0.25);font-weight:700" onclick="loginAsDemo()">⚡ Entrar como Atleta Demo</button>
                 <div style="margin-top:20px;font-size:13px;text-align:center;color:var(--text-secondary)">
                     Não tem conta? <a onclick="toggleAuth('register')" style="color:var(--blue);cursor:pointer;font-weight:700">Criar cadastro</a>
                 </div>
@@ -108,9 +112,30 @@
 <!-- ==================== MAIN APPLICATION ==================== -->
 <div id="mainScreen" class="screen">
     <div class="container">
+        <!-- Global Top Modern Navigation Switcher -->
+        <div class="main-nav-bar">
+            <button type="button" class="main-nav-pill active" id="topTabToday" onclick="switchMainTab('today')">☀️ Hoje</button>
+            <button type="button" class="main-nav-pill" id="topTabEntry" onclick="switchMainTab('entry')">✍️ Preenchimento</button>
+            <button type="button" class="main-nav-pill" id="topTabTable" onclick="switchMainTab('table')">📊 Planilha</button>
+            <button type="button" class="main-nav-pill" id="topTabTrends" onclick="switchMainTab('trends')">📈 Gráficos</button>
+            <button type="button" class="main-nav-pill" id="topTabScience" onclick="switchMainTab('science')">🧠 Metodologia</button>
+        </div>
+
 
         <!-- ==================== VIEW: TODAY (HOJE) ==================== -->
         <div id="viewToday">
+            <!-- Quick Preenchimento Banner -->
+            <div class="action-banner-quick" onclick="switchMainTab('entry')" style="cursor:pointer;margin:10px 0 16px;background:linear-gradient(135deg, #007aff 0%, #5856d6 100%);color:#fff;padding:12px 16px;border-radius:14px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 4px 16px rgba(0,122,255,0.22);transition:transform 0.15s ease">
+                <div style="display:flex;align-items:center;gap:12px">
+                    <span style="font-size:26px">✍️</span>
+                    <div>
+                        <div style="font-size:14px;font-weight:800;letter-spacing:-0.2px">Preenchimento de Saúde & Treino</div>
+                        <div style="font-size:12px;opacity:0.9">Registrar dados de hoje com cálculos da planilha em tempo real</div>
+                    </div>
+                </div>
+                <span style="font-size:20px;font-weight:900">→</span>
+            </div>
+
 
             <!-- Top Header (iOS Style with Action Buttons) -->
             <div class="top-nav">
@@ -424,15 +449,350 @@
 
         </div>
 
+        <!-- ==================== VIEW: ENTRY (PREENCHIMENTO DIÁRIO) ==================== -->
+        <div id="viewEntry" style="display:none">
+            <div class="trends-top-header" style="margin-bottom:14px">
+                <div>
+                    <h1 class="top-large-title">Preenchimento</h1>
+                    <p style="font-size:13px;color:var(--text-tertiary)">Sistema completo de registro diário de saúde, dor e treinamento</p>
+                </div>
+                <div style="display:flex;gap:6px">
+                    <button type="button" class="btn-pill-small" onclick="setEntryDateToday()">Hoje</button>
+                    <button type="button" class="btn-pill-small" onclick="copyPreviousDayToForm()" title="Copiar valores do dia anterior">📋 Copiar Anterior</button>
+                </div>
+            </div>
+
+            <form id="dailyEntryForm" onsubmit="event.preventDefault(); saveEntryForm();">
+                <!-- 1. Data e Dia da Semana -->
+                <div class="card" style="margin-bottom:14px">
+                    <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+                        <div style="flex:1;min-width:180px">
+                            <label style="font-weight:700;font-size:13px;color:var(--text-primary);display:block;margin-bottom:4px">📅 Data do Registro</label>
+                            <input type="date" id="entryDate" class="form-control" onchange="handleEntryDateChange()" required>
+                        </div>
+                        <div style="flex:1;min-width:140px;display:flex;flex-direction:column;justify-content:center">
+                            <span style="font-size:12px;color:var(--text-tertiary);font-weight:600">Dia da Semana</span>
+                            <span id="entryWeekdayLabel" style="font-size:15px;font-weight:800;color:var(--blue)">Segunda-feira</span>
+                        </div>
+                        <div id="entryEditIndicator" style="display:none;padding:6px 10px;background:#eef2ff;color:var(--blue);border-radius:8px;font-size:12px;font-weight:700">
+                            ✏️ Editando registro
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. Saúde, Sono e Autonômico -->
+                <div class="card" style="margin-bottom:14px">
+                    <div class="card-header" style="margin-bottom:14px">
+                        <div class="card-title">🌙 1. Sono & Recuperação Matinal</div>
+                    </div>
+
+                    <!-- Qualidade do Sono -->
+                    <div class="slider-group">
+                        <div class="slider-header">
+                            <label>Qualidade do Sono (0 a 10)</label>
+                            <div class="slider-header-actions">
+                                <button type="button" class="btn-scale-info" onclick="showScaleLegend('sonoQ')">ℹ️ Legenda</button>
+                                <span class="slider-val" id="vEntrySonoQ">7</span>
+                            </div>
+                        </div>
+                        <input type="range" id="entrySonoQ" min="0" max="10" value="7" oninput="sv(this,'vEntrySonoQ','sonoQ'); updateLiveEntryPreview();">
+                        <div class="slider-labels"><span>0 (Péssimo)</span><span>10 (Excelente)</span></div>
+                        <div class="slider-desc-hint" id="desc_entrySonoQ"><strong>7:</strong> Bom — Repousante e revigorante</div>
+                    </div>
+
+                    <!-- Sensação ao Acordar -->
+                    <div class="slider-group">
+                        <div class="slider-header">
+                            <label>Sensação ao Acordar (0 a 10)</label>
+                            <span class="slider-val" id="vEntrySensacao">7</span>
+                        </div>
+                        <input type="range" id="entrySensacao" min="0" max="10" value="7" oninput="sv(this,'vEntrySensacao'); updateLiveEntryPreview();">
+                        <div class="slider-labels"><span>0 (Muito cansado)</span><span>10 (Revitalizado)</span></div>
+                    </div>
+
+                    <!-- Grid: Sono Relógio + Horas de Sono -->
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+                        <div class="form-group" style="margin-bottom:0">
+                            <label style="font-size:12.5px">⌚ Score Relógio (0-100)</label>
+                            <input type="number" id="entrySonoWatch" class="form-control" placeholder="Ex: 82" min="0" max="100" value="80" oninput="updateLiveEntryPreview()">
+                        </div>
+                        <div class="form-group" style="margin-bottom:0">
+                            <label style="font-size:12.5px">⏳ Horas de Sono</label>
+                            <input type="number" id="entrySonoH" class="form-control" step="0.5" placeholder="Ex: 7.5" min="3" max="14" value="7.5" oninput="updateLiveEntryPreview()">
+                        </div>
+                    </div>
+
+                    <!-- Grid: HRV Matinal + FC Repouso -->
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+                        <div class="form-group" style="margin-bottom:0">
+                            <label style="font-size:12.5px">⚡ HRV Matinal (ms rMSSD)</label>
+                            <input type="number" id="entryHrv" class="form-control" placeholder="Ex: 78" min="10" max="250" value="75" oninput="updateLiveEntryPreview()">
+                        </div>
+                        <div class="form-group" style="margin-bottom:0">
+                            <label style="font-size:12.5px">❤️ FC Repouso (bpm)</label>
+                            <input type="number" id="entryRhr" class="form-control" placeholder="Ex: 46" min="30" max="110" value="48">
+                        </div>
+                    </div>
+
+                    <!-- PSR (Kellmann & Kallus) -->
+                    <div class="slider-group">
+                        <div class="slider-header">
+                            <label>PSR — Recuperação e Estresse (0 a 10)</label>
+                            <div class="slider-header-actions">
+                                <button type="button" class="btn-scale-info" onclick="showScaleLegend('prs')">ℹ️ Legenda</button>
+                                <span class="slider-val" id="vEntryPsr">7</span>
+                            </div>
+                        </div>
+                        <input type="range" id="entryPsr" min="0" max="10" value="7" oninput="sv(this,'vEntryPsr','prs'); updateLiveEntryPreview();">
+                        <div class="slider-labels"><span>0 (Esgotado)</span><span>10 (Totalmente Recuperado)</span></div>
+                        <div class="slider-desc-hint" id="desc_entryPsr"><strong>7:</strong> Boa — Corpo disposto e pronto</div>
+                    </div>
+
+                    <!-- Estresse -->
+                    <div class="slider-group">
+                        <div class="slider-header">
+                            <label>Nível de Estresse Geral (0 a 10)</label>
+                            <div class="slider-header-actions">
+                                <button type="button" class="btn-scale-info" onclick="showScaleLegend('estresse')">ℹ️ Legenda</button>
+                                <span class="slider-val" id="vEntryEstresse">3</span>
+                            </div>
+                        </div>
+                        <input type="range" id="entryEstresse" min="0" max="10" value="3" oninput="sv(this,'vEntryEstresse','estresse'); updateLiveEntryPreview();">
+                        <div class="slider-labels"><span>0 (Nenhum)</span><span>10 (Extremo)</span></div>
+                    </div>
+                </div>
+
+                <!-- 3. Registro de Dores (Registro dor) -->
+                <div class="card" style="margin-bottom:14px">
+                    <div class="card-header" style="margin-bottom:14px">
+                        <div class="card-title">🩹 2. Escala de Dor Corporal (Registro Dor)</div>
+                    </div>
+
+                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px">
+                        <div class="form-group" style="margin-bottom:0">
+                            <label style="font-size:12px">🌅 Dor Manhã</label>
+                            <input type="number" id="entryDorManha" class="form-control" min="0" max="10" value="0" oninput="autoCalcDorGeral(); updateLiveEntryPreview();">
+                        </div>
+                        <div class="form-group" style="margin-bottom:0">
+                            <label style="font-size:12px">☀️ Dor Meio-Dia</label>
+                            <input type="number" id="entryDorMeio" class="form-control" min="0" max="10" value="0" oninput="autoCalcDorGeral(); updateLiveEntryPreview();">
+                        </div>
+                        <div class="form-group" style="margin-bottom:0">
+                            <label style="font-size:12px">🌙 Dor Noitinha</label>
+                            <input type="number" id="entryDorNoite" class="form-control" min="0" max="10" value="0" oninput="autoCalcDorGeral(); updateLiveEntryPreview();">
+                        </div>
+                    </div>
+
+                    <div class="slider-group">
+                        <div class="slider-header">
+                            <label>Dor Geral Média (0 a 10)</label>
+                            <span class="slider-val" id="vEntryDor">0</span>
+                        </div>
+                        <input type="range" id="entryDorGeral" min="0" max="10" value="0" oninput="sv(this,'vEntryDor'); updateLiveEntryPreview();">
+                        <div class="slider-labels"><span>0 (Sem dor)</span><span>10 (Insuportável)</span></div>
+                    </div>
+
+                    <div class="form-group" style="margin-bottom:0">
+                        <label style="font-size:12.5px">📍 Região / Localização Principal da Dor</label>
+                        <select id="entryDorLocal" class="form-control"></select>
+                    </div>
+                </div>
+
+                <!-- 4. Treinamento & Carga -->
+                <div class="card" style="margin-bottom:14px">
+                    <div class="card-header" style="margin-bottom:14px">
+                        <div class="card-title">⚡ 3. Sessão de Treinamento & Esforço</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Tipo de Atividade</label>
+                        <select id="entryWkType" class="form-control" onchange="handleWkTypeChange()"></select>
+                    </div>
+
+                    <div class="slider-group">
+                        <div class="slider-header">
+                            <label>Duração do Treino (minutos)</label>
+                            <span class="slider-val" id="vEntryDur">60m</span>
+                        </div>
+                        <input type="range" id="entryDur" min="0" max="240" step="5" value="60" oninput="sv(this,'vEntryDur'); updateLiveEntryPreview();">
+                        <div class="slider-labels"><span>0m (Descanso)</span><span>240m</span></div>
+                    </div>
+
+                    <div class="slider-group">
+                        <div class="slider-header">
+                            <label>PSE — Percepção Subjetiva de Esforço (Borg CR-10)</label>
+                            <div class="slider-header-actions">
+                                <button type="button" class="btn-scale-info" onclick="showScaleLegend('wkPse')">ℹ️ Legenda</button>
+                                <span class="slider-val" id="vEntryPse">6</span>
+                            </div>
+                        </div>
+                        <input type="range" id="entryPse" min="0" max="10" value="6" oninput="sv(this,'vEntryPse','wkPse'); updateLiveEntryPreview();">
+                        <div class="slider-labels"><span>0 (Repouso)</span><span>10 (Máximo)</span></div>
+                        <div class="slider-desc-hint" id="desc_entryPse"><strong>6:</strong> Pesado — Ritmo forte, esforço claro</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>❤️ FC Média durante o treino (bpm)</label>
+                        <input type="number" id="entryFcMedia" class="form-control" placeholder="Ex: 145" min="40" max="220" value="142">
+                    </div>
+
+                    <div class="form-group" style="margin-bottom:0">
+                        <label>Observações do Treino / Cargas Levantadas</label>
+                        <input type="text" id="entryNotes" class="form-control" placeholder="Ex: Treino de força pesado, agachamento 4x6 com 120kg">
+                    </div>
+                </div>
+
+                <!-- 5. Live Preview / Cálculos Científicos em Tempo Real -->
+                <div class="card" style="background:linear-gradient(135deg, #1c1c1e 0%, #2c2c2e 100%);color:#ffffff;margin-bottom:18px;border:1px solid rgba(255,255,255,0.08)">
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+                        <span style="font-size:13px;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:0.5px">🔬 Cálculo em Tempo Real (Fórmulas da Planilha)</span>
+                        <span id="previewZoneBadge" style="font-size:11.5px;padding:3px 8px;border-radius:6px;background:rgba(52,199,89,0.2);color:#34c759;font-weight:700">Zona Ideal</span>
+                    </div>
+
+                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;text-align:center;margin-bottom:12px">
+                        <div style="background:rgba(255,255,255,0.06);padding:10px 6px;border-radius:10px">
+                            <div style="font-size:11px;color:#aeaeb2;margin-bottom:2px">TRIMP (Banister)</div>
+                            <div id="prevTrimp" style="font-size:20px;font-weight:900;color:#e879f9">360</div>
+                            <div style="font-size:10px;color:#8e8e93">PSE × Min</div>
+                        </div>
+                        <div style="background:rgba(255,255,255,0.06);padding:10px 6px;border-radius:10px">
+                            <div style="font-size:11px;color:#aeaeb2;margin-bottom:2px">TSS (Coggan)</div>
+                            <div id="prevTss" style="font-size:20px;font-weight:900;color:#7c3aed">230.4</div>
+                            <div style="font-size:10px;color:#8e8e93">Estresse</div>
+                        </div>
+                        <div style="background:rgba(255,255,255,0.06);padding:10px 6px;border-radius:10px">
+                            <div style="font-size:11px;color:#aeaeb2;margin-bottom:2px">Prontidão</div>
+                            <div id="prevProntidao" style="font-size:20px;font-weight:900;color:#34c759">82%</div>
+                            <div style="font-size:10px;color:#8e8e93">Score Diário</div>
+                        </div>
+                    </div>
+
+                    <div id="prevRecommendation" style="font-size:12.5px;line-height:1.45;color:#e5e5ea;background:rgba(255,255,255,0.04);padding:8px 12px;border-radius:8px">
+                        Prontidão excelente e recuperação adequada. O organismo está apto para suportar cargas elevadas ou trabalho de potência.
+                    </div>
+                </div>
+
+                <!-- Botões de Ação -->
+                <div style="display:flex;gap:10px;margin-bottom:30px">
+                    <button type="submit" class="btn-pill-action blue" style="flex:2;padding:14px;font-size:15px">💾 Salvar Registro Diário</button>
+                    <button type="button" class="btn-pill-action" style="flex:1;background:#ffffff;color:var(--text-secondary);border:1px solid var(--border)" onclick="resetEntryForm()">Limpar</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- ==================== VIEW: TABLE (PLANILHA DE REGISTROS) ==================== -->
+        <div id="viewTable" style="display:none">
+            <div class="trends-top-header" style="margin-bottom:12px">
+                <div>
+                    <h1 class="top-large-title">Planilha</h1>
+                    <p style="font-size:13px;color:var(--text-tertiary)">Visão completa de histórico, exportação e importação de planilhas</p>
+                </div>
+            </div>
+
+            <!-- Toolbar -->
+            <div class="card" style="margin-bottom:14px;padding:12px 14px">
+                <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between">
+                    <div style="display:flex;gap:8px;flex-wrap:wrap">
+                        <button type="button" class="btn-tool" onclick="exportToXlsx()" title="Exportar planilha Excel completa (.xlsx)">
+                            📤 Exportar Excel (.xlsx)
+                        </button>
+                        <button type="button" class="btn-tool" onclick="exportToCsv()" title="Exportar arquivo CSV">
+                            📄 Exportar CSV
+                        </button>
+                        <button type="button" class="btn-tool" onclick="document.getElementById('fileImportInput').click()" title="Importar planilha Excel ou CSV">
+                            📥 Importar Planilha
+                        </button>
+                        <input type="file" id="fileImportInput" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleFileImport(this)">
+                        <button type="button" class="btn-tool" style="color:var(--purple)" onclick="handleResetOriginalSpreadsheet()" title="Restaurar dados originais da planilha monitor meu.xlsx">
+                            🔄 Restaurar Planilha
+                        </button>
+                    </div>
+                    <div style="flex:1;min-width:180px;max-width:300px">
+                        <input type="text" id="tableSearchInput" class="form-control" placeholder="🔍 Buscar por data, treino ou dor..." oninput="handleTableSearch(this.value)" style="height:36px;font-size:12.5px">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Spreadsheet Table Responsive Wrapper -->
+            <div class="card" style="padding:0;overflow:hidden">
+                <div class="table-responsive" style="max-height:650px;overflow-y:auto;overflow-x:auto">
+                    <table class="syn-spreadsheet-table" id="spreadsheetTable">
+                        <thead>
+                            <tr>
+                                <th style="min-width:95px">Data</th>
+                                <th style="min-width:50px">Dia</th>
+                                <th style="min-width:120px">Sono & Score</th>
+                                <th style="min-width:75px">HRV</th>
+                                <th style="min-width:55px">PSR</th>
+                                <th style="min-width:105px">Dor (M/M/N)</th>
+                                <th style="min-width:140px">Treino / Min</th>
+                                <th style="min-width:70px">PSE</th>
+                                <th style="min-width:75px">TRIMP</th>
+                                <th style="min-width:75px">TSS</th>
+                                <th style="min-width:65px">ATL</th>
+                                <th style="min-width:65px">CTL</th>
+                                <th style="min-width:70px">TSB</th>
+                                <th style="min-width:80px">Monotonia</th>
+                                <th style="min-width:85px">Prontidão</th>
+                                <th style="min-width:90px;text-align:center">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="spreadsheetTableBody">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+                <div style="padding:10px 16px;background:var(--bg-card-secondary);border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--text-tertiary)">
+                    <span id="tableRecordCount">Carregando registros...</span>
+                    <span>Clique em ✏️ para editar qualquer dia no formulário</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== VIEW: SCIENCE & METHODOLOGY ==================== -->
+        <div id="viewScience" style="display:none">
+            <div class="trends-top-header" style="margin-bottom:14px">
+                <div>
+                    <h1 class="top-large-title">Metodologia</h1>
+                    <p style="font-size:13px;color:var(--text-tertiary)">Fundamentação científica extraída da planilha monitor meu.xlsx</p>
+                </div>
+            </div>
+            <div id="methodologyCardsContainer" style="display:flex;flex-direction:column;gap:12px;margin-bottom:30px">
+                <!-- Populated dynamically from METHODOLOGY_VARS -->
+            </div>
+        </div>
+
     </div>
 </div>
 
 <!-- ==================== FIXED iOS TRANSLUCENT BOTTOM TAB BAR ==================== -->
+<!-- ==================== FIXED iOS TRANSLUCENT BOTTOM TAB BAR ==================== -->
 <div class="bottom-nav">
     <div class="nav-item active" id="tabNavToday" onclick="switchMainTab('today')">
         <span class="nav-icon">☀️</span>
-        <span>Today</span>
+        <span>Hoje</span>
     </div>
+    <div class="nav-item" id="tabNavEntry" onclick="switchMainTab('entry')">
+        <span class="nav-icon">✍️</span>
+        <span>Preenchimento</span>
+    </div>
+    <div class="nav-item" id="tabNavTable" onclick="switchMainTab('table')">
+        <span class="nav-icon">📊</span>
+        <span>Planilha</span>
+    </div>
+    <div class="nav-item" id="tabNavTrends" onclick="switchMainTab('trends')">
+        <span class="nav-icon">📈</span>
+        <span>Gráficos</span>
+    </div>
+    <div class="nav-item" id="tabNavScience" onclick="switchMainTab('science')">
+        <span class="nav-icon">🧠</span>
+        <span>Metodologia</span>
+    </div>
+    <div class="nav-item" onclick="openModal('curriculumModal')">
+        <span class="nav-icon">👤</span>
+        <span>Perfil</span>
+    </div>
+</div>
     <div class="nav-item" id="tabNavTrends" onclick="switchMainTab('trends')">
         <span class="nav-icon">📊</span>
         <span>Trends</span>

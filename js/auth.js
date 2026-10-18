@@ -48,6 +48,18 @@ function login() {
     showDashboard();
 }
 
+function loginAsDemo() {
+    const demoUser = {
+        id: 'demo-athlete',
+        name: 'Valdemar Jr',
+        email: 'valdemar@synthonia.ai',
+        createdAt: new Date().toISOString()
+    };
+    currentUser = demoUser;
+    localStorage.setItem(SK.USER, JSON.stringify(demoUser));
+    showDashboard();
+}
+
 function resetPassword() {
     const email = document.getElementById('resetEmail').value.trim();
     const pw = document.getElementById('resetPassword').value;

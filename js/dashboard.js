@@ -401,3 +401,438 @@ function openShareSummary() {
         alert(text);
     }
 }
+
+/* ===================================================================
+   SPREADSHEET TABLE & DAILY DATA ENTRY ENGINE (monitor meu.xlsx)
+   =================================================================== */
+
+/**
+ * Initialize Data Entry Form with Select Options and Defaults
+ */
+function initEntryForm() {
+    const wkSelect = document.getElementById('entryWkType');
+    if (wkSelect && typeof WORKOUT_TYPES !== 'undefined') {
+        wkSelect.innerHTML = WORKOUT_TYPES.map(t => `<option value="${t}">${t}</option>`).join('');
+    }
+
+    const dorSelect = document.getElementById('entryDorLocal');
+    if (dorSelect && typeof BODY_REGIONS !== 'undefined') {
+        dorSelect.innerHTML = BODY_REGIONS.map(r => `<option value="${r}">${r}</option>`).join('');
+    }
+
+    const dateInput = document.getElementById('entryDate');
+    if (dateInput && !dateInput.value) {
+        dateInput.value = new Date().toISOString().slice(0, 10);
+    }
+
+    handleEntryDateChange();
+}
+
+/**
+ * Handle Date Change in Entry Form: Load Existing Record or Reset to Draft
+ */
+function handleEntryDateChange() {
+    const dateInput = document.getElementById('entryDate');
+    if (!dateInput || !dateInput.value) return;
+
+    const selectedDate = dateInput.value;
+    const dt = new Date(selectedDate + 'T12:00:00');
+    const dayNames = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
+    const wkLabel = document.getElementById('entryWeekdayLabel');
+    if (wkLabel) wkLabel.textContent = dayNames[dt.getDay()];
+
+    const data = getData();
+    const existing = data.find(e => e.date && e.date.slice(0, 10) === selectedDate);
+    const editIndicator = document.getElementById('entryEditIndicator');
+
+    if (existing) {
+        if (editIndicator) editIndicator.style.display = 'inline-block';
+        
+        // Populate inputs from existing entry
+        setInputValue('entrySonoQ', existing.sonoQ ?? 7, 'vEntrySonoQ', 'sonoQ');
+        setInputValue('entrySensacao', existing.sensacao ?? existing.sonoQ ?? 7, 'vEntrySensacao');
+        setInputValue('entrySonoWatch', existing.sonoWatch ?? 80);
+        setInputValue('entrySonoH', existing.sonoH ?? 7.5);
+        setInputValue('entryHrv', existing.hrv ?? 75);
+        setInputValue('entryRhr', existing.rhr ?? 48);
+        setInputValue('entryPsr', existing.psr ?? 7, 'vEntryPsr', 'prs');
+        setInputValue('entryEstresse', existing.estresse ?? 3, 'vEntryEstresse', 'estresse');
+
+        setInputValue('entryDorManha', existing.dorManha ?? 0);
+        setInputValue('entryDorMeio', existing.dorMeio ?? 0);
+        setInputValue('entryDorNoite', existing.dorNoite ?? 0);
+        setInputValue('entryDorGeral', existing.dor ?? 0, 'vEntryDor');
+        
+        const dorLocalEl = document.getElementById('entryDorLocal');
+        if (dorLocalEl && existing.dorLocal) dorLocalEl.value = existing.dorLocal;
+
+        const wkTypeEl = document.getElementById('entryWkType');
+        if (wkTypeEl && existing.wkType) wkTypeEl.value = existing.wkType;
+
+        setInputValue('entryDur', existing.dur ?? 60, 'vEntryDur');
+        setInputValue('entryPse', existing.pse ?? 6, 'vEntryPse', 'wkPse');
+        setInputValue('entryFcMedia', existing.fcmedia ?? 142);
+        
+        const notesEl = document.getElementById('entryNotes');
+        if (notesEl) notesEl.value = existing.notes || '';
+    } else {
+        if (editIndicator) editIndicator.style.display = 'none';
+    }
+
+    updateLiveEntryPreview();
+}
+
+/**
+ * Set entry date to today
+ */
+function setEntryDateToday() {
+    const dateInput = document.getElementById('entryDate');
+    if (dateInput) {
+        dateInput.value = new Date().toISOString().slice(0, 10);
+        handleEntryDateChange();
+    }
+}
+
+/**
+ * Copy previous day's metrics into the form as a draft shortcut
+ */
+function copyPreviousDayToForm() {
+    const dateInput = document.getElementById('entryDate');
+    if (!dateInput || !dateInput.value) return;
+
+    const curDt = new Date(dateInput.value + 'T12:00:00');
+    curDt.setDate(curDt.getDate() - 1);
+    const prevDateStr = curDt.toISOString().slice(0, 10);
+
+    const data = getData();
+    const prev = data.find(e => e.date && e.date.slice(0, 10) === prevDateStr);
+    if (!prev) {
+        alert('Nenhum registro encontrado no dia anterior (' + prevDateStr + ').');
+        return;
+    }
+
+    setInputValue('entrySonoQ', prev.sonoQ ?? 7, 'vEntrySonoQ', 'sonoQ');
+    setInputValue('entrySensacao', prev.sensacao ?? 7, 'vEntrySensacao');
+    setInputValue('entrySonoWatch', prev.sonoWatch ?? 80);
+    setInputValue('entrySonoH', prev.sonoH ?? 7.5);
+    setInputValue('entryHrv', prev.hrv ?? 75);
+    setInputValue('entryRhr', prev.rhr ?? 48);
+    setInputValue('entryPsr', prev.psr ?? 7, 'vEntryPsr', 'prs');
+    setInputValue('entryEstresse', prev.estresse ?? 3, 'vEntryEstresse', 'estresse');
+    
+    setInputValue('entryDorManha', prev.dorManha ?? 0);
+    setInputValue('entryDorMeio', prev.dorMeio ?? 0);
+    setInputValue('entryDorNoite', prev.dorNoite ?? 0);
+    setInputValue('entryDorGeral', prev.dor ?? 0, 'vEntryDor');
+
+    updateLiveEntryPreview();
+    alert('Valores de base de ' + prevDateStr + ' copiados para o formulário!');
+}
+
+/**
+ * Auto calculate general pain slider from Morning, Midday, Evening
+ */
+function autoCalcDorGeral() {
+    const m = Number(document.getElementById('entryDorManha')?.value) || 0;
+    const md = Number(document.getElementById('entryDorMeio')?.value) || 0;
+    const n = Number(document.getElementById('entryDorNoite')?.value) || 0;
+    const avg = Math.round((m + md + n) / 3);
+    const dorSlider = document.getElementById('entryDorGeral');
+    if (dorSlider) {
+        dorSlider.value = avg;
+        sv(dorSlider, 'vEntryDor');
+    }
+}
+
+/**
+ * Handle Workout Type Change (e.g., Repouso Total sets dur=0, pse=0)
+ */
+function handleWkTypeChange() {
+    const wkType = document.getElementById('entryWkType')?.value;
+    if (wkType === 'Repouso Total') {
+        setInputValue('entryDur', 0, 'vEntryDur');
+        setInputValue('entryPse', 0, 'vEntryPse', 'wkPse');
+    }
+    updateLiveEntryPreview();
+}
+
+/**
+ * Helper to set value and trigger visual slider descriptor update
+ */
+function setInputValue(id, val, valId, scaleKey) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.value = val;
+    if (valId) sv(el, valId, scaleKey);
+}
+
+/**
+ * Live Mathematical Preview of monitor meu.xlsx formulas
+ */
+function updateLiveEntryPreview() {
+    const pse = Number(document.getElementById('entryPse')?.value) || 0;
+    const dur = Number(document.getElementById('entryDur')?.value) || 0;
+    const psr = Number(document.getElementById('entryPsr')?.value) || 7;
+    const sonoQ = Number(document.getElementById('entrySonoQ')?.value) || 7;
+    const sensacao = Number(document.getElementById('entrySensacao')?.value) || sonoQ;
+    const dor = Number(document.getElementById('entryDorGeral')?.value) || 0;
+
+    // Banister TRIMP & Coggan TSS
+    const trimp = Math.round(pse * dur);
+    const tss = Number((pse * 0.64 * dur).toFixed(1));
+
+    // Valor Sono (Mediana/Média da planilha)
+    const valorSono = Number(((sonoQ + sensacao) / 2).toFixed(1));
+
+    // Nível de Prontidão (Fórmula matemática da planilha):
+    // (((PSR + ValorSono + (10 - PSE)) / 30) * 100) - (((Min * Dor) / 1000) * 100)
+    const term1 = ((psr + valorSono + (10 - pse)) / 30) * 100;
+    const term2 = ((dur * dor) / 1000) * 100;
+    const prontidao = Math.max(0, Math.min(100, Math.round(term1 - term2)));
+
+    // DOM Updates
+    const elTrimp = document.getElementById('prevTrimp');
+    const elTss = document.getElementById('prevTss');
+    const elPront = document.getElementById('prevProntidao');
+    const elBadge = document.getElementById('previewZoneBadge');
+    const elRec = document.getElementById('prevRecommendation');
+
+    if (elTrimp) elTrimp.textContent = trimp;
+    if (elTss) elTss.textContent = tss;
+    if (elPront) {
+        elPront.textContent = `${prontidao}%`;
+        elPront.style.color = prontidao >= 70 ? 'var(--green)' : prontidao >= 45 ? 'var(--yellow)' : 'var(--red)';
+    }
+
+    if (elBadge && elRec) {
+        if (prontidao >= 70 && dor <= 3) {
+            elBadge.textContent = '🟢 Alta Prontidão';
+            elBadge.style.background = 'rgba(52,199,89,0.2)';
+            elBadge.style.color = '#34c759';
+            elRec.innerHTML = `<strong>Prontidão Excelente (${prontidao}%):</strong> Condições ideais para treinos de alta intensidade, progressão de carga neuromuscular ou estímulos específicos de limiar.`;
+        } else if (prontidao >= 45 && dor <= 5) {
+            elBadge.textContent = '🟡 Carga Moderada';
+            elBadge.style.background = 'rgba(255,204,0,0.2)';
+            elBadge.style.color = '#ffcc00';
+            elRec.innerHTML = `<strong>Prontidão Moderada (${prontidao}%):</strong> Capacidade fisiológica estável para treinos submáximos ou de manutenção. Evite exaustão extrema.`;
+        } else {
+            elBadge.textContent = '🔴 Deload / Regenerativo';
+            elBadge.style.background = 'rgba(255,59,48,0.2)';
+            elBadge.style.color = '#ff3b30';
+            elRec.innerHTML = `<strong>Fadiga ou Desconforto Detectados (${prontidao}% | Dor ${dor}/10):</strong> Recomendada regeneração ativa, mobilidade ou descanso para evitar lesões por sobreuso.`;
+        }
+    }
+}
+
+/**
+ * Save Daily Entry from Form
+ */
+function saveEntryForm() {
+    const dateInput = document.getElementById('entryDate');
+    if (!dateInput || !dateInput.value) {
+        alert('Por favor, informe a data do registro.');
+        return;
+    }
+
+    const dt = new Date(dateInput.value + 'T12:00:00');
+    const weekdays = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab'];
+    const weekday = weekdays[dt.getDay()];
+
+    const entry = {
+        date: dateInput.value,
+        weekday: weekday,
+        sonoQ: Number(document.getElementById('entrySonoQ')?.value) || 7,
+        sensacao: Number(document.getElementById('entrySensacao')?.value) || 7,
+        sonoWatch: Number(document.getElementById('entrySonoWatch')?.value) || 80,
+        sonoH: Number(document.getElementById('entrySonoH')?.value) || 7.5,
+        hrv: Number(document.getElementById('entryHrv')?.value) || 75,
+        rhr: Number(document.getElementById('entryRhr')?.value) || 48,
+        psr: Number(document.getElementById('entryPsr')?.value) || 7,
+        estresse: Number(document.getElementById('entryEstresse')?.value) || 3,
+        dorManha: Number(document.getElementById('entryDorManha')?.value) || 0,
+        dorMeio: Number(document.getElementById('entryDorMeio')?.value) || 0,
+        dorNoite: Number(document.getElementById('entryDorNoite')?.value) || 0,
+        dor: Number(document.getElementById('entryDorGeral')?.value) || 0,
+        dorLocal: document.getElementById('entryDorLocal')?.value || 'Nenhuma dor',
+        wkType: document.getElementById('entryWkType')?.value || 'Musculação / Força',
+        dur: Number(document.getElementById('entryDur')?.value) || 0,
+        pse: Number(document.getElementById('entryPse')?.value) || 0,
+        fcmedia: Number(document.getElementById('entryFcMedia')?.value) || 140,
+        notes: document.getElementById('entryNotes')?.value || ''
+    };
+
+    saveEntry(entry);
+    refreshAll();
+    renderSpreadsheetTable();
+
+    alert(`✅ Registro do dia ${dateInput.value.split('-').reverse().join('/')} salvo com sucesso!`);
+}
+
+/**
+ * Reset form to blank / defaults
+ */
+function resetEntryForm() {
+    document.getElementById('dailyEntryForm')?.reset();
+    setEntryDateToday();
+}
+
+/**
+ * Edit a specific date: open in Entry tab
+ */
+function editRecord(dateStr) {
+    switchMainTab('entry');
+    const dateInput = document.getElementById('entryDate');
+    if (dateInput) {
+        dateInput.value = dateStr.slice(0, 10);
+        handleEntryDateChange();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+}
+
+/**
+ * Delete a specific date record
+ */
+function removeRecord(dateStr) {
+    const formatted = dateStr.slice(0, 10).split('-').reverse().join('/');
+    if (confirm(`Deseja realmente excluir o registro do dia ${formatted}?`)) {
+        deleteEntry(dateStr);
+        refreshAll();
+        renderSpreadsheetTable();
+    }
+}
+
+/**
+ * Render Interactive Spreadsheet Table
+ */
+function renderSpreadsheetTable(filterText = '') {
+    const tbody = document.getElementById('spreadsheetTableBody');
+    const countEl = document.getElementById('tableRecordCount');
+    if (!tbody) return;
+
+    let data = getData();
+    if (!data || data.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="16" style="text-align:center;padding:28px;color:var(--text-tertiary)">Nenhum registro encontrado. Clique em "Preenchimento" para adicionar o primeiro dia.</td></tr>`;
+        if (countEl) countEl.textContent = '0 registros';
+        return;
+    }
+
+    // Filter if search query present
+    if (filterText && filterText.trim()) {
+        const q = filterText.toLowerCase().trim();
+        data = data.filter(e => {
+            const dt = (e.date || '').toLowerCase();
+            const wk = (e.weekday || '').toLowerCase();
+            const tp = (e.wkType || '').toLowerCase();
+            const dl = (e.dorLocal || '').toLowerCase();
+            const nt = (e.notes || '').toLowerCase();
+            return dt.includes(q) || wk.includes(q) || tp.includes(q) || dl.includes(q) || nt.includes(q);
+        });
+    }
+
+    // Display newest first
+    const displayRows = [...data].reverse();
+
+    if (countEl) {
+        countEl.textContent = `${displayRows.length} dia(s) registrado(s) na planilha`;
+    }
+
+    let html = '';
+    displayRows.forEach(e => {
+        const dateFormatted = e.date ? e.date.slice(0, 10).split('-').reverse().join('/') : '—';
+        const weekday = e.weekday ? e.weekday.toUpperCase() : '—';
+        
+        // Color badges
+        const pseBadge = e.pse >= 8 ? 'badge-red' : e.pse >= 5 ? 'badge-yellow' : 'badge-blue';
+        const tsbBadge = e.tsb >= 0 ? 'badge-green' : e.tsb >= -15 ? 'badge-yellow' : 'badge-red';
+        const dorBadge = e.dor >= 4 ? 'badge-red' : e.dor >= 2 ? 'badge-yellow' : 'badge-green';
+        const prontBadge = e.prontidao >= 70 ? 'badge-green' : e.prontidao >= 45 ? 'badge-yellow' : 'badge-red';
+        const monoBadge = (e.monotonia || 1) >= 2.0 ? 'badge-red' : 'badge-gray';
+
+        html += `
+            <tr>
+                <td><strong>${dateFormatted}</strong></td>
+                <td><span class="badge-gray">${weekday}</span></td>
+                <td>Q:${e.sonoQ} · S:${e.sensacao} <span style="color:var(--blue);font-weight:700">(${e.sonoWatch || 0}%)</span></td>
+                <td><strong style="color:var(--cyan)">${e.hrv || 0}</strong> ms</td>
+                <td><span class="badge-blue">${e.psr || 0}</span></td>
+                <td><span class="${dorBadge}">G:${e.dor || 0}</span> <small style="color:var(--text-tertiary)">(${e.dorManha || 0}/${e.dorMeio || 0}/${e.dorNoite || 0})</small></td>
+                <td><strong>${e.wkType || 'Treino'}</strong> <span style="color:var(--text-secondary)">(${e.dur || 0}m)</span></td>
+                <td><span class="${pseBadge}">PSE ${e.pse || 0}</span></td>
+                <td><strong style="color:var(--purple)">${e.trimp || 0}</strong></td>
+                <td><strong style="color:var(--indigo)">${e.tss || 0}</strong></td>
+                <td>${e.atl || 0}</td>
+                <td>${e.ctl || 0}</td>
+                <td><span class="${tsbBadge}">${e.tsb > 0 ? '+' : ''}${e.tsb || 0}</span></td>
+                <td><span class="${monoBadge}">${e.monotonia || 1}</span></td>
+                <td><span class="${prontBadge}">${e.prontidao || 0}%</span></td>
+                <td style="text-align:center;white-space:nowrap">
+                    <button type="button" class="btn-table-action" onclick="editRecord('${e.date}')" title="Editar registro">✏️</button>
+                    <button type="button" class="btn-table-action delete" onclick="removeRecord('${e.date}')" title="Excluir registro">🗑️</button>
+                </td>
+            </tr>
+        `;
+    });
+
+    tbody.innerHTML = html;
+}
+
+/**
+ * Handle Search Input in Spreadsheet Table
+ */
+function handleTableSearch(query) {
+    renderSpreadsheetTable(query);
+}
+
+/**
+ * Handle File Import from Excel or CSV
+ */
+function handleFileImport(inputEl) {
+    if (!inputEl.files || !inputEl.files[0]) return;
+    const file = inputEl.files[0];
+
+    importFromXlsx(file, function(count) {
+        inputEl.value = '';
+        refreshAll();
+        renderSpreadsheetTable();
+        alert(`🎉 Sucesso! ${count} registros foram importados e sincronizados com a planilha.`);
+    }, function(err) {
+        inputEl.value = '';
+        alert('Erro ao importar: ' + err);
+    });
+}
+
+/**
+ * Restore original data from monitor meu.xlsx
+ */
+function handleResetOriginalSpreadsheet() {
+    if (confirm('Deseja recarregar a planilha original de monitoramento? Seus registros serão restaurados com a base de dados do sistema.')) {
+        resetToSpreadsheetData();
+        refreshAll();
+        renderSpreadsheetTable();
+        alert('Planilha restaurada com sucesso!');
+    }
+}
+
+/**
+ * Render Methodology and Science Cards from monitor meu.xlsx
+ */
+function renderMethodology() {
+    const container = document.getElementById('methodologyCardsContainer');
+    if (!container || typeof METHODOLOGY_VARS === 'undefined') return;
+
+    container.innerHTML = METHODOLOGY_VARS.map(v => `
+        <div class="card" style="margin-bottom:0">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+                <div style="font-size:16px;font-weight:800;color:var(--text-primary)">
+                    <span style="display:inline-block;padding:3px 8px;background:var(--blue-light);color:var(--blue);border-radius:6px;font-size:13px;margin-right:6px">${v.sigla}</span>
+                    ${v.nome}
+                </div>
+            </div>
+            <div style="font-size:12.5px;color:var(--blue);font-weight:700;margin-bottom:6px">✍️ ${v.autores}</div>
+            <p style="font-size:13.5px;color:var(--text-secondary);line-height:1.5;margin-bottom:8px">${v.bio}</p>
+            ${v.formula ? `<div style="background:var(--bg-system);padding:6px 10px;border-radius:8px;font-family:monospace;font-size:12px;color:var(--purple);margin-bottom:6px">📐 Fórmula: <strong>${v.formula}</strong></div>` : ''}
+            <div style="font-size:12.5px;color:var(--text-tertiary);line-height:1.4"><strong style="color:var(--text-secondary)">Interpretação:</strong> ${v.interpretacao}</div>
+        </div>
+    `).join('');
+}
+

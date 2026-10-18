@@ -28,7 +28,120 @@ const SK = {
     USER:     'syn_user',
     USERS:    'syn_users',
     DATA:     'syn_data',
+    CONFIG:   'syn_config'
 };
+
+const WORKOUT_TYPES = [
+    'Musculação / Força',
+    'Corrida',
+    'Ciclismo',
+    'Natação',
+    'CrossFit / Funcional',
+    'Esporte Coletivo',
+    'Mobilidade / Regenerativo',
+    'Descanso Ativo',
+    'Repouso Total'
+];
+
+const BODY_REGIONS = [
+    'Nenhuma dor',
+    'Lombar',
+    'Joelhos',
+    'Ombros',
+    'Quadril / Glúteos',
+    'Posterior de Coxa',
+    'Quadríceps',
+    'Panturrilhas',
+    'Tornozelos / Pés',
+    'Cervical / Pescoço',
+    'Trapézio / Costas Superior',
+    'Peitoral',
+    'Braços / Punhos',
+    'Articulações Gerais'
+];
+
+const METHODOLOGY_VARS = [
+    {
+        sigla: 'PSR',
+        nome: 'Perceived Stress Recovery',
+        autores: 'Kellmann & Kallus (2001)',
+        bio: 'Escala psicofisiológica que quantifica a percepção subjetiva de restauração e estresse biopsicossocial do atleta.',
+        escala: '0 a 10 (ou Likert)',
+        interpretacao: 'Valores ≥ 7 indicam recuperação satisfatória para suportar novas cargas; valores ≤ 4 exigem moderação de volume/intensidade.'
+    },
+    {
+        sigla: 'PSE',
+        nome: 'Percepção Subjetiva de Esforço (Borg CR-10)',
+        autores: 'Gunnar Borg / Carl Foster (1998, 2001)',
+        bio: 'Instrumento validado internacionalmente para quantificar a intensidade interna do treino atlético.',
+        escala: '0 (Repouso) a 10 (Exaustão Máxima)',
+        interpretacao: 'Base para o cálculo da carga interna (Session-RPE). Multiplicada pela duração para obter o TRIMP / TSS.'
+    },
+    {
+        sigla: 'TRIMP',
+        nome: 'Training Impulse (Impulso de Treinamento)',
+        autores: 'Eric Banister (1991)',
+        bio: 'Métrica quantitativa de carga diária: Produto direto da intensidade percebida (PSE) pela duração do estímulo em minutos.',
+        formula: 'TRIMP = PSE × Minutos de Treino',
+        interpretacao: 'Ex: 60 minutos com PSE 6 = 360 unidades arbitrárias (UA) de impulso biológico.'
+    },
+    {
+        sigla: 'TSS',
+        nome: 'Training Stress Score (Pontuação de Estresse do Treino)',
+        autores: 'Dr. Andrew Coggan & Hunter Allen',
+        bio: 'Quantificação do estresse metabólico relativo imposto ao organismo por uma sessão de treino específica.',
+        formula: 'TSS = (PSE × 0.64 × Minutos) ou com fator de escala individual',
+        interpretacao: '0-150: Carga leve/recuperativa; 150-300: Carga moderada; 300-450: Carga alta; >450: Carga extenuante.'
+    },
+    {
+        sigla: 'ATL',
+        nome: 'Acute Training Load (Carga Aguda de Treinamento)',
+        autores: 'Eric Banister & Andrew Coggan',
+        bio: 'Representa a fadiga fisiológica recente acumulada nos últimos 7 dias (constante de tempo τ = 7 dias).',
+        formula: 'Média móvel de 7 dias de TSS ou decaimento exponencial de 7 dias',
+        interpretacao: 'Indica a sobrecarga imediata sofrida pelos sistemas muscular, metabólico e autonômico.'
+    },
+    {
+        sigla: 'CTL',
+        nome: 'Chronic Training Load (Carga Crônica / Fitness)',
+        autores: 'Eric Banister & Andrew Coggan',
+        bio: 'Representa a capacidade atlética de base e adaptação crônica construída nos últimos 28 a 42 dias.',
+        formula: 'Média móvel ou decaimento exponencial de 28 a 42 dias',
+        interpretacao: 'Quanto maior o CTL consolidado, maior a tolerância do atleta a estímulos intensos.'
+    },
+    {
+        sigla: 'TSB',
+        nome: 'Training Stress Balance (Balanço de Estresse / Frescor)',
+        autores: 'Andrew Coggan (PMC Model)',
+        bio: 'Diferença entre o condicionamento crônico e a fadiga aguda: TSB = CTL − ATL.',
+        formula: 'TSB = CTL − ATL',
+        interpretacao: 'TSB > 0: Estado de supercompensação / frescor ótimo para competições; TSB entre -10 e -25: Zona produtiva de treino; TSB < -30: Risco crítico de sobretreinamento.'
+    },
+    {
+        sigla: 'Monotonia',
+        nome: 'Monotonia de Treinamento',
+        autores: 'Carl Foster (1998)',
+        bio: 'Razão entre a carga média diária e a variabilidade (desvio padrão) da carga semanal.',
+        formula: 'Monotonia = Média(Carga Semanal) ÷ Desvio Padrão(Carga Semanal)',
+        interpretacao: 'Valores > 2.0 representam alta monotonia e estão associados a maior incidência de infecções das vias aéreas superiores, lesões e overtraining.'
+    },
+    {
+        sigla: 'Strain',
+        nome: 'Tensão do Treinamento (Foster Strain)',
+        autores: 'Carl Foster (1998)',
+        bio: 'Produto da carga total semanal multiplicada pela monotonia semanal.',
+        formula: 'Strain = Carga Total Semanal × Monotonia',
+        interpretacao: 'Indica o impacto estressor combinado do volume somado à falta de variação entre dias fortes e dias leves.'
+    },
+    {
+        sigla: 'Prontidão',
+        nome: 'Nível de Prontidão Diária (Readiness Score)',
+        autores: 'Algoritmo Integrado da Planilha de Monitoramento',
+        bio: 'Sintetiza recuperação subjetiva (PSR), qualidade do sono, sensação ao acordar, dor corporal e carga do dia.',
+        formula: '(((PSR + Valor_Sono + (10 - PSE))/30) × 100) − (((Minutos × Dor)/1000) × 100)',
+        interpretacao: 'Score de 0 a 100% que orienta a prescrição da intensidade da sessão do dia.'
+    }
+];
 
 const SCALE_LEGENDS = {
     sonoQ: {

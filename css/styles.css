@@ -1037,7 +1037,8 @@ input[type="range"] {
 
 /* Custom Scrollbars */
 ::-webkit-scrollbar {
-    width: 5px;
+    width: 6px;
+    height: 6px;
 }
 ::-webkit-scrollbar-track {
     background: transparent;
@@ -1046,3 +1047,193 @@ input[type="range"] {
     background: #d1d1d6;
     border-radius: 3px;
 }
+
+/* ===================================================================
+   RESPONSIVE EXPANSION & SPREADSHEET TABLE SYSTEM (monitor meu.xlsx)
+   =================================================================== */
+
+@media (min-width: 900px) {
+    .container {
+        max-width: 1040px;
+        padding: 20px 28px;
+    }
+}
+
+/* Global Top Navigation Bar */
+.main-nav-bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 18px;
+    background: rgba(255, 255, 255, 0.78);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    padding: 6px;
+    border-radius: var(--radius-pill);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.85);
+    overflow-x: auto;
+    white-space: nowrap;
+    -webkit-overflow-scrolling: touch;
+}
+.main-nav-bar::-webkit-scrollbar { display: none; }
+.main-nav-pill {
+    border: none;
+    background: transparent;
+    padding: 9px 16px;
+    border-radius: var(--radius-pill);
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    user-select: none;
+}
+.main-nav-pill:hover {
+    color: var(--text-primary);
+    background: rgba(0, 0, 0, 0.04);
+}
+.main-nav-pill.active {
+    background: var(--blue);
+    color: #ffffff;
+    box-shadow: 0 3px 10px rgba(0, 122, 255, 0.32);
+}
+
+/* Spreadsheet Table Styles */
+.syn-spreadsheet-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 13px;
+    color: var(--text-primary);
+    background: #ffffff;
+}
+.syn-spreadsheet-table th {
+    background: #f8f8fa;
+    color: var(--text-secondary);
+    font-weight: 700;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 11px 12px;
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    text-align: left;
+    white-space: nowrap;
+}
+.syn-spreadsheet-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border-light);
+    vertical-align: middle;
+    white-space: nowrap;
+}
+.syn-spreadsheet-table tr:hover td {
+    background: rgba(0, 122, 255, 0.035);
+}
+.syn-spreadsheet-table tr:last-child td {
+    border-bottom: none;
+}
+
+/* Badge Styles */
+.badge-green {
+    display: inline-block;
+    padding: 3px 8px;
+    background: var(--green-light);
+    color: #1e7e34;
+    border-radius: 6px;
+    font-weight: 700;
+    font-size: 11.5px;
+}
+.badge-yellow {
+    display: inline-block;
+    padding: 3px 8px;
+    background: var(--yellow-light);
+    color: #b45309;
+    border-radius: 6px;
+    font-weight: 700;
+    font-size: 11.5px;
+}
+.badge-red {
+    display: inline-block;
+    padding: 3px 8px;
+    background: var(--red-light);
+    color: #dc2626;
+    border-radius: 6px;
+    font-weight: 700;
+    font-size: 11.5px;
+}
+.badge-blue {
+    display: inline-block;
+    padding: 3px 8px;
+    background: var(--blue-light);
+    color: var(--blue);
+    border-radius: 6px;
+    font-weight: 700;
+    font-size: 11.5px;
+}
+.badge-gray {
+    display: inline-block;
+    padding: 3px 7px;
+    background: var(--bg-system);
+    color: var(--text-secondary);
+    border-radius: 5px;
+    font-weight: 600;
+    font-size: 11px;
+}
+
+/* Action Buttons */
+.btn-table-action {
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 15px;
+    padding: 5px 7px;
+    border-radius: 6px;
+    transition: background 0.15s ease;
+}
+.btn-table-action:hover {
+    background: rgba(0, 0, 0, 0.06);
+}
+.btn-table-action.delete:hover {
+    background: var(--red-light);
+}
+
+.btn-tool {
+    border: 1px solid var(--border);
+    background: #ffffff;
+    color: var(--text-primary);
+    font-weight: 700;
+    font-size: 12.5px;
+    padding: 7px 14px;
+    border-radius: 9px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.03);
+    transition: all 0.15s ease;
+}
+.btn-tool:hover {
+    background: var(--bg-system);
+    border-color: #c7c7cc;
+}
+.btn-pill-small {
+    border: 1px solid rgba(0,122,255,0.25);
+    background: #ffffff;
+    color: var(--blue);
+    font-weight: 700;
+    font-size: 12px;
+    padding: 6px 12px;
+    border-radius: var(--radius-pill);
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+.btn-pill-small:hover {
+    background: var(--blue-light);
+}
+

@@ -3,26 +3,52 @@
    =================================================================== */
 
 function switchMainTab(tab) {
-    const viewToday = document.getElementById('viewToday');
-    const viewTrends = document.getElementById('viewTrends');
-    const tabNavToday = document.getElementById('tabNavToday');
-    const tabNavTrends = document.getElementById('tabNavTrends');
+    const views = {
+        today: document.getElementById('viewToday'),
+        entry: document.getElementById('viewEntry'),
+        table: document.getElementById('viewTable'),
+        trends: document.getElementById('viewTrends'),
+        science: document.getElementById('viewScience')
+    };
 
-    if (tab === 'today') {
-        if (viewToday) viewToday.style.display = 'block';
-        if (viewTrends) viewTrends.style.display = 'none';
-        if (tabNavToday) tabNavToday.classList.add('active');
-        if (tabNavTrends) tabNavTrends.classList.remove('active');
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+    const navItems = {
+        today: document.getElementById('tabNavToday'),
+        entry: document.getElementById('tabNavEntry'),
+        table: document.getElementById('tabNavTable'),
+        trends: document.getElementById('tabNavTrends'),
+        science: document.getElementById('tabNavScience')
+    };
+
+    const topTabs = {
+        today: document.getElementById('topTabToday'),
+        entry: document.getElementById('topTabEntry'),
+        table: document.getElementById('topTabTable'),
+        trends: document.getElementById('topTabTrends'),
+        science: document.getElementById('topTabScience')
+    };
+
+    // Hide all views and remove active class
+    Object.keys(views).forEach(k => {
+        if (views[k]) views[k].style.display = k === tab ? 'block' : 'none';
+        if (navItems[k]) navItems[k].classList.toggle('active', k === tab);
+        if (topTabs[k]) topTabs[k].classList.toggle('active', k === tab);
+    });
+
+    // Specific tab activations
+    if (tab === 'entry') {
+        initEntryForm();
+    } else if (tab === 'table') {
+        renderSpreadsheetTable();
     } else if (tab === 'trends') {
-        if (viewToday) viewToday.style.display = 'none';
-        if (viewTrends) viewTrends.style.display = 'block';
-        if (tabNavToday) tabNavToday.classList.remove('active');
-        if (tabNavTrends) tabNavTrends.classList.add('active');
         buildVarChips();
         renderChart();
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+    } else if (tab === 'science') {
+        renderMethodology();
+    } else if (tab === 'today') {
+        refreshAll();
     }
+
+    window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function showDashboard() {
@@ -42,6 +68,10 @@ function showDashboard() {
 
     buildVarChips();
     refreshAll();
+    renderSpreadsheetTable();
+    initEntryForm();
+    renderMethodology();
+
     if (typeof syncFromSupabase === 'function') syncFromSupabase();
 }
 
@@ -50,6 +80,7 @@ function refreshAll() {
     updateIndices(data);
     runAIAnalysis();
     renderChart();
+    renderSpreadsheetTable();
 }
 
 function handleSaveSupabaseConfig() {
