@@ -52,7 +52,7 @@ function loginAsDemo() {
     const demoUser = {
         id: 'demo-athlete',
         name: 'Valdemar Jr',
-        email: 'valdemar@synthonia.ai',
+        email: 'valdemar@app.io',
         createdAt: new Date().toISOString()
     };
     currentUser = demoUser;
