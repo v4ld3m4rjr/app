@@ -661,11 +661,28 @@ function saveEntryForm() {
         notes: document.getElementById('entryNotes')?.value || ''
     };
 
-    saveEntry(entry);
+    const saved = saveEntry(entry);
     refreshAll();
     renderSpreadsheetTable();
 
-    alert(`✅ Registro do dia ${dateInput.value.split('-').reverse().join('/')} salvo com sucesso!`);
+    // Call rich confirmation modal
+    if (typeof showSubmissionSuccessModal === 'function') {
+        showSubmissionSuccessModal(saved || entry, 'Registro Diário');
+    } else {
+        alert(`✅ Registro do dia ${dateInput.value.split('-').reverse().join('/')} salvo com sucesso!`);
+    }
+
+    // Button visual confirmation
+    const submitBtn = document.querySelector('#dailyEntryForm button[type="submit"]');
+    if (submitBtn) {
+        const originalText = submitBtn.innerHTML;
+        submitBtn.innerHTML = '✅ Registro Salvo com Sucesso!';
+        submitBtn.style.background = 'var(--green)';
+        setTimeout(() => {
+            submitBtn.innerHTML = originalText;
+            submitBtn.style.background = '';
+        }, 3000);
+    }
 }
 
 /**

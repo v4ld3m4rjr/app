@@ -6,6 +6,7 @@ function switchMainTab(tab) {
     const views = {
         today: document.getElementById('viewToday'),
         entry: document.getElementById('viewEntry'),
+        neuroAI: document.getElementById('viewNeuroAI'),
         table: document.getElementById('viewTable'),
         trends: document.getElementById('viewTrends'),
         science: document.getElementById('viewScience')
@@ -14,6 +15,7 @@ function switchMainTab(tab) {
     const navItems = {
         today: document.getElementById('tabNavToday'),
         entry: document.getElementById('tabNavEntry'),
+        neuroAI: document.getElementById('tabNavNeuroAI'),
         table: document.getElementById('tabNavTable'),
         trends: document.getElementById('tabNavTrends'),
         science: document.getElementById('tabNavScience')
@@ -22,6 +24,7 @@ function switchMainTab(tab) {
     const topTabs = {
         today: document.getElementById('topTabToday'),
         entry: document.getElementById('topTabEntry'),
+        neuroAI: document.getElementById('topTabNeuroAI'),
         table: document.getElementById('topTabTable'),
         trends: document.getElementById('topTabTrends'),
         science: document.getElementById('topTabScience')
@@ -37,6 +40,8 @@ function switchMainTab(tab) {
     // Specific tab activations
     if (tab === 'entry') {
         initEntryForm();
+    } else if (tab === 'neuroAI') {
+        if (typeof renderNeuroAIAnalysis === 'function') renderNeuroAIAnalysis();
     } else if (tab === 'table') {
         renderSpreadsheetTable();
     } else if (tab === 'trends') {
@@ -77,10 +82,14 @@ function showDashboard() {
 
 function refreshAll() {
     const data = getData();
-    updateIndices(data);
-    runAIAnalysis();
-    renderChart();
-    renderSpreadsheetTable();
+    if (typeof updateIndices === 'function') updateIndices(data);
+    if (typeof runAIAnalysis === 'function') runAIAnalysis();
+    if (typeof renderChart === 'function') renderChart();
+    if (typeof renderSpreadsheetTable === 'function') renderSpreadsheetTable();
+    const neuroView = document.getElementById('viewNeuroAI');
+    if (neuroView && neuroView.style.display !== 'none' && typeof renderNeuroAIAnalysis === 'function') {
+        renderNeuroAIAnalysis();
+    }
 }
 
 function handleSaveSupabaseConfig() {

@@ -150,6 +150,79 @@ function num(id) {
     return el ? (parseFloat(el.value) || 0) : 0;
 }
 
+/* ── Global Floating Confirmation Toast & Success Feedback ── */
+let toastTimeout = null;
+
+function showConfirmationToast(title, desc, durationMs = 4000) {
+    const toast = document.getElementById('globalConfirmToast');
+    const titleEl = document.getElementById('toastTitle');
+    const descEl = document.getElementById('toastDesc');
+    const bar = document.getElementById('toastProgressBar');
+    if (!toast) return;
+
+    if (titleEl) titleEl.textContent = title;
+    if (descEl) descEl.textContent = desc;
+
+    toast.style.display = 'block';
+    if (bar) {
+        bar.style.transition = 'none';
+        bar.style.width = '100%';
+        setTimeout(() => {
+            bar.style.transition = `width ${durationMs}ms linear`;
+            bar.style.width = '0%';
+        }, 20);
+    }
+
+    if (toastTimeout) clearTimeout(toastTimeout);
+    toastTimeout = setTimeout(() => {
+        hideConfirmToast();
+    }, durationMs);
+
+    if (navigator.vibrate) {
+        try { navigator.vibrate([30, 40, 30]); } catch (e) {}
+    }
+}
+
+function hideConfirmToast() {
+    const toast = document.getElementById('globalConfirmToast');
+    if (toast) toast.style.display = 'none';
+    if (toastTimeout) clearTimeout(toastTimeout);
+}
+
+/**
+ * Show Rich Submission Success Modal Dialog
+ */
+function showSubmissionSuccessModal(entry, formTitle = 'Questionário Matinal') {
+    const modal = document.getElementById('submissionSuccessModal');
+    if (!modal) {
+        showConfirmationToast('✅ Dados Enviados!', `${formTitle} salvo com sucesso.`);
+        return;
+    }
+
+    const titleEl = document.getElementById('subSuccessTitle');
+    const dateEl = document.getElementById('subSuccessDate');
+    const prontEl = document.getElementById('subValProntidao');
+    const recEl = document.getElementById('subValRecuperacao');
+    const hrvEl = document.getElementById('subValHrv');
+    const cargaEl = document.getElementById('subValCarga');
+
+    if (titleEl) titleEl.textContent = `✅ ${formTitle} Salvo!`;
+    const dt = entry.date ? entry.date.slice(0, 10).split('-').reverse().join('/') : 'Hoje';
+    if (dateEl) dateEl.textContent = `Registro de ${dt} processado, recalculado e sincronizado.`;
+
+    if (prontEl) prontEl.textContent = `${entry.prontidao != null ? entry.prontidao : '--'}%`;
+    if (recEl) recEl.textContent = `${entry.recuperacao != null ? entry.recuperacao : '--'}%`;
+    if (hrvEl) hrvEl.textContent = `${entry.hrv || '--'} ms`;
+    const carga = (entry.tss || entry.trimp) ? `${entry.tss || entry.trimp} TSS` : '0 (Descanso)';
+    if (cargaEl) cargaEl.textContent = carga;
+
+    // Toast in top
+    showConfirmationToast('✅ Dados Salvos com Sucesso!', `${formTitle}: Prontidão ${entry.prontidao || 0}% · Recuperação ${entry.recuperacao || 0}%`);
+
+    // Open bottom modal sheet
+    openModal('submissionSuccessModal');
+}
+
 /* ── Save Recovery Questionnaire (0-10 Scales, TQR 0-13) ── */
 function saveQuestionnaire() {
     try {
@@ -193,12 +266,13 @@ function saveQuestionnaire() {
         };
         if (qHrv > 0) entry.hrv = qHrv;
 
-        saveEntry(entry);
+        var saved = saveEntry(entry);
         closeModal('questionnaireModal');
         refreshAll();
-        alert('✅ Questionário de recuperação salvo com sucesso!');
+        showSubmissionSuccessModal(saved || entry, 'Questionário Matinal');
     } catch (err) {
         console.error('Erro ao salvar questionário:', err);
+        showConfirmationToast('Erro ao Salvar', err.message);
         alert('Erro ao salvar questionário: ' + err.message);
     }
 }
@@ -227,12 +301,13 @@ function saveWorkout() {
         };
         if (hrv > 0) entry.hrv = hrv;
 
-        saveEntry(entry);
+        var saved = saveEntry(entry);
         closeModal('workoutModal');
         refreshAll();
-        alert('✅ Treino de ' + type + ' registrado com sucesso!');
+        showSubmissionSuccessModal(saved || entry, 'Treino de ' + type);
     } catch (err) {
         console.error('Erro ao salvar treino:', err);
+        showConfirmationToast('Erro ao Salvar', err.message);
         alert('Erro ao salvar treino: ' + err.message);
     }
 }
