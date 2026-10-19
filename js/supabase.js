@@ -41,6 +41,7 @@ async function syncFromSupabase() {
     if (!sbClient) return;
     try {
         sbSyncStatus = 'syncing';
+        updateSupabaseStatusUI('syncing');
         
         let { data, error } = await sbClient
             .from(SUPABASE_CONFIG.table)
@@ -49,6 +50,7 @@ async function syncFromSupabase() {
 
         if (error) {
             sbSyncStatus = 'error';
+            updateSupabaseStatusUI('error');
             console.warn(`[Supabase] Erro ao consultar tabela [${SUPABASE_CONFIG.table}]:`, error.message);
             return;
         }
@@ -56,12 +58,15 @@ async function syncFromSupabase() {
         sbSyncStatus = 'connected';
         if (data && data.length > 0) {
             console.log(`[Supabase] ✅ Carregados ${data.length} registros reais da nuvem (tabela: ${SUPABASE_CONFIG.table})`);
+            updateSupabaseStatusUI('connected', data.length);
             processSupabaseData(data);
         } else {
             console.log(`[Supabase] Conectado. Tabela [${SUPABASE_CONFIG.table}] pronta para receber registros.`);
+            updateSupabaseStatusUI('connected', 0);
         }
     } catch (err) {
         sbSyncStatus = 'error';
+        updateSupabaseStatusUI('error');
         console.error('Supabase sync exception:', err);
     }
 }
@@ -215,3 +220,100 @@ function saveSupabaseConfig(url, key, table) {
 
     initSupabase();
 }
+
+/**
+ * Sincroniza em lote todos os dados locais para a tabela Supabase
+ */
+async function pushAllToSupabase() {
+    if (!sbClient) {
+        initSupabase();
+        if (!sbClient) {
+            alert('Supabase não conectado. Verifique a URL e a Anon Key.');
+            return false;
+        }
+    }
+    try {
+        updateSupabaseStatusUI('syncing');
+        const localData = (typeof getData === 'function') ? getData() : [];
+        if (!localData.length) {
+            alert('Não há dados locais para sincronizar.');
+            updateSupabaseStatusUI('connected', 0);
+            return false;
+        }
+
+        const payload = localData.map(function(entry) {
+            return {
+                date: entry.date ? entry.date.slice(0, 10) : new Date().toISOString().slice(0, 10),
+                sonoq: Number(entry.sonoQ != null ? entry.sonoQ : (entry.sonoq != null ? entry.sonoq : 7)),
+                sonoh: Number(entry.sonoH != null ? entry.sonoH : (entry.sonoh != null ? entry.sonoh : 7.5)),
+                fadiga: Number(entry.fadiga != null ? entry.fadiga : 3),
+                estresse: Number(entry.estresse != null ? entry.estresse : 3),
+                doms: Number(entry.doms != null ? entry.doms : 2),
+                humor: Number(entry.humor != null ? entry.humor : 7),
+                tqr: Number(entry.tqr != null ? entry.tqr : 9),
+                prs: Number(entry.prs != null ? entry.prs : 7),
+                dor: Number(entry.dor != null ? entry.dor : 0),
+                motivacao: Number(entry.motivacao != null ? entry.motivacao : 8),
+                hooper: Number(entry.hooper != null ? entry.hooper : 10),
+                hrv: Number(entry.hrv != null ? entry.hrv : 75),
+                rhr: Number(entry.rhr != null ? entry.rhr : 48),
+                fcmedia: Number(entry.fcmedia != null ? entry.fcmedia : 140),
+                pse: Number(entry.pse != null ? entry.pse : 0),
+                dur: Number(entry.dur != null ? entry.dur : 0),
+                trimp: Number(entry.trimp != null ? entry.trimp : 0),
+                tss: Number(entry.tss != null ? entry.tss : 0),
+                atl: Number(entry.atl != null ? entry.atl : 0),
+                ctl: Number(entry.ctl != null ? entry.ctl : 0),
+                tsb: Number(entry.tsb != null ? entry.tsb : 0),
+                monotonia: Number(entry.monotonia != null ? entry.monotonia : 1.0),
+                prontidao: Number(entry.prontidao != null ? entry.prontidao : 70),
+                recuperacao: Number(entry.recuperacao != null ? entry.recuperacao : 70),
+                workout_type: entry.wkType || entry.workoutType || entry.workout_type || '',
+                notes: entry.notes || '',
+                updated_at: new Date().toISOString()
+            };
+        });
+
+        const { error } = await sbClient.from(SUPABASE_CONFIG.table).upsert(payload, { onConflict: 'date' });
+        if (error) {
+            console.error('[Supabase] Erro no pushAll:', error.message);
+            updateSupabaseStatusUI('error');
+            alert('Erro ao enviar dados para o Supabase: ' + error.message);
+            return false;
+        } else {
+            console.log(`✅ [Supabase] ${payload.length} registros sincronizados na nuvem.`);
+            updateSupabaseStatusUI('connected', payload.length);
+            return true;
+        }
+    } catch (err) {
+        console.error('[Supabase] Exceção pushAll:', err);
+        updateSupabaseStatusUI('error');
+        alert('Erro ao sincronizar com Supabase: ' + err.message);
+        return false;
+    }
+}
+
+/**
+ * Atualiza o indicador visual do Supabase no cabeçalho
+ */
+function updateSupabaseStatusUI(status, count) {
+    const badge = document.getElementById('sbStatusBadge');
+    if (!badge) return;
+    if (status === 'connected') {
+        badge.innerHTML = `☁️ Supabase Conectado${count != null ? ` (${count} reg)` : ''}`;
+        badge.style.background = 'rgba(52, 199, 89, 0.12)';
+        badge.style.color = '#34c759';
+        badge.style.borderColor = 'rgba(52, 199, 89, 0.25)';
+    } else if (status === 'syncing') {
+        badge.innerHTML = `☁️ Sincronizando...`;
+        badge.style.background = 'rgba(0, 122, 255, 0.12)';
+        badge.style.color = '#007aff';
+        badge.style.borderColor = 'rgba(0, 122, 255, 0.25)';
+    } else if (status === 'error') {
+        badge.innerHTML = `☁️ Supabase Offline`;
+        badge.style.background = 'rgba(255, 59, 48, 0.12)';
+        badge.style.color = '#ff3b30';
+        badge.style.borderColor = 'rgba(255, 59, 48, 0.25)';
+    }
+}
+

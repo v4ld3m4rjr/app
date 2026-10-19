@@ -1375,3 +1375,13 @@ input[type="range"] {
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
 }
 
+.badge-status-pill {
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    user-select: none;
+}
+.badge-status-pill:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(52, 199, 89, 0.2);
+}
+
+

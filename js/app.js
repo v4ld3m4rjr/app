@@ -104,6 +104,26 @@ function handleSaveSupabaseConfig() {
     alert('Configurações do Supabase salvas com sucesso! Sincronizando dados...');
 }
 
+async function handlePushAllSupabase() {
+    if (typeof pushAllToSupabase === 'function') {
+        const btn = document.getElementById('btnPushAllSb');
+        const originalText = btn ? btn.textContent : '';
+        if (btn) {
+            btn.textContent = '⏳ Enviando registros para o Supabase...';
+            btn.disabled = true;
+        }
+        const ok = await pushAllToSupabase();
+        if (btn) {
+            btn.textContent = originalText;
+            btn.disabled = false;
+        }
+        if (ok) {
+            alert('✅ Todos os registros foram enviados e sincronizados com sucesso no Supabase!');
+            closeModal('supabaseConfigModal');
+        }
+    }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     if (typeof initSupabase === 'function') {
         initSupabase();
