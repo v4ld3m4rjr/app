@@ -1148,6 +1148,7 @@ function deleteEntry(dateStr) {
     const filtered = data.filter(e => !(e.date && e.date.slice(0, 10) === targetDate));
     const recalculated = recalcTrainingLoads(filtered);
     saveData(recalculated);
+    if (typeof deleteFromSupabase === 'function') deleteFromSupabase(targetDate);
     return recalculated;
 }
 
