@@ -1368,3 +1368,46 @@ function exVar(e, k) {
     };
     return map[k] ?? 0;
 }
+
+/* ── Scientific helper formulas ── */
+
+// Hooper Index (0 a 40): Fadiga (0-10) + Estresse (0-10) + DOMS (0-10) + (10 − Humor)
+function cHooper(f, e, d, h) {
+    var vF = Number(f) || 0;
+    var vE = Number(e) || 0;
+    var vD = Number(d) || 0;
+    var vH = Number(h != null ? h : 7);
+    return Math.max(0, Math.min(40, vF + vE + vD + (10 - vH)));
+}
+
+// Prontidão (0-100): TQR (0-13) 40%, PRS (0-10) 30%, Sono (0-10) 20%, Motivação (0-10) 10%
+function cPront(tqr, prs, sonoQ, mot) {
+    var t = Number(tqr != null ? tqr : 8);
+    var p = Number(prs != null ? prs : 7);
+    var s = Number(sonoQ != null ? sonoQ : 7);
+    var m = Number(mot != null ? mot : 7);
+    return CL(Math.round(((t / 13) * 40) + ((p / 10) * 30) + ((s / 10) * 20) + ((m / 10) * 10)), 0, 100);
+}
+
+// Recuperação (0-100): TQR (0-13) 35%, PRS (0-10) 35%, Sono (0-10) 20%, Inverso-DOMS (0-10) 10%
+function cRecup(tqr, prs, sonoQ, doms) {
+    var t = Number(tqr != null ? tqr : 8);
+    var p = Number(prs != null ? prs : 7);
+    var s = Number(sonoQ != null ? sonoQ : 7);
+    var d = Number(doms != null ? doms : 2);
+    var invDoms = (10 - Math.min(10, Math.max(0, d))) / 10;
+    return CL(Math.round(((t / 13) * 35) + ((p / 10) * 35) + ((s / 10) * 20) + (invDoms * 10)), 0, 100);
+}
+
+// Daily Monotony = mean(TSS_7d) / sd(TSS_7d)
+function cMono(arr) {
+    if (!arr || arr.length < 2) return 1.0;
+    var m = arr.reduce(function(a, b) { return a + b; }, 0) / arr.length;
+    var variance = arr.reduce(function(a, b) { return a + Math.pow(b - m, 2); }, 0) / arr.length;
+    var sd = Math.sqrt(variance) || 1;
+    return Number((m / sd).toFixed(2));
+}
+
+function CL(v, lo, hi) { return Math.max(lo, Math.min(hi, Math.round(v))); }
+function R(a, b) { return Math.floor(Math.random() * (b - a + 1)) + a; }
+
